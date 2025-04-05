@@ -1,21 +1,14 @@
 import streamlit as st
-import os
-import random
 import time
-import pandas as pd
+import random
+import os
 from datetime import datetime
+from PIL import Image
 
+# --- CONFIG ---
 st.set_page_config(page_title="STAT 332 Survey", layout="centered", initial_sidebar_state="collapsed")
-# ---- Group Prefixes and Valid Codes ----
-group_prefixes = {
-    "MCND": "Mixed Color + No Distortion",
-    "MCSD": "Mixed Color + Simple Distortion",
-    "MCCD": "Mixed Color + Complex Distortion",
-    "NCND": "No Color + No Distortion",
-    "NCSD": "No Color + Simple Distortion",
-    "NCCD": "No Color + Complex Distortion"
-}
 
+# --- VALID CODES BY GROUP ---
 valid_answers = {
     "MCND": ["R5UM", "X4GE", "H2KD", "P7CQ", "6TVA", "D8YR"],
     "MCSD": ["N8QJ", "S4VA", "E9DX", "T3KM", "J5NZ", "V6RC"],
@@ -25,120 +18,117 @@ valid_answers = {
     "NCCD": ["F3YV", "B7QA", "Z5HW", "H6GT", "R2NX", "Y8PC"]
 }
 
-# ---- Load 2 Random Images from Each Group ----
-def load_images():
-    images_dir = "images"
-    all_selected = []
-    for prefix in group_prefixes:
-        group_images = [f for f in os.listdir(images_dir) if f.startswith(prefix) and f.endswith(".jpg")]
-        selected = random.sample(group_images, 2)
-        for img in selected:
-            all_selected.append({
-                "filename": img,
-                "group": prefix,
-                "label": group_prefixes[prefix]
-            })
-    random.shuffle(all_selected)
-    return all_selected
-
-# ---- Streamlit Session State Setup ----
-st.set_page_config(page_title="STAT 332 Survey", layout="centered")
-
+# --- SESSION STATE INIT ---
 if "step" not in st.session_state:
     st.session_state.step = "start"
-if "name" not in st.session_state:
-    st.session_state.name = ""
+if "username" not in st.session_state:
+    st.session_state.username = ""
 if "images" not in st.session_state:
     st.session_state.images = []
-if "index" not in st.session_state:
-    st.session_state.index = 0
+if "results" not in st.session_state:
+    st.session_state.results = []
+if "current_index" not in st.session_state:
+    st.session_state.current_index = 0
 if "start_time" not in st.session_state:
-    st.session_state.start_time = None
-if "response_time" not in st.session_state:
-    st.session_state.response_time = 0
-if "answer_ready" not in st.session_state:
-    st.session_state.answer_ready = False
-if "responses" not in st.session_state:
-    st.session_state.responses = []
+    st.session_state.start_time = 0
+if "image_dir" not in st.session_state:
+    st.session_state.image_dir = "images"
 
-# ---- Start Page ----
-if st.session_state.step == "start":
-    st.title("STAT 332 Survey")
+# --- RANDOMIZE IMAGES ---
+def load_images():
+    images = []
+    for group in valid_answers.keys():
+        selected = random.sample(range(1, 7), 2)
+        for i in selected:
+            filename = f"{group}{i}.jpg"
+            images.append((group, filename))
+    random.shuffle(images)
+    return images
+
+# --- START PAGE ---
+def show_start():
+    st.title("STAT 332 Experiment")
     st.subheader("The Impact of Color & Distortion on Code Recognition")
-    st.write("Please enter your nickname to begin:")
-    name = st.text_input("Nickname")
-
+    name = st.text_input("Enter your nickname to begin:", key="name")
     if st.button("Start Survey"):
         if name.strip() == "":
             st.warning("Please enter a valid nickname.")
         else:
-            st.session_state.name = name.strip()
+            st.session_state.username = name.strip()
+            st.session_state.images = load_images()
             st.session_state.step = "instructions"
             st.experimental_rerun()
 
-# ---- Instruction Page ----
-elif st.session_state.step == "instructions":
-    st.title("Instructions")
+# --- INSTRUCTIONS ---
+def show_instructions():
+    st.header("Instructions")
     st.markdown("""
-1. You’ll see **12 images** of verification codes (2 from each group).
-2. For each image, click **"I Recognized It!"** once you recognize the code.
-3. After that, a textbox will appear — type what you saw.
-4. **Don't worry** — there are no confusing letters like 0 (zero) or O (letter O).
-5. All answers are **4 characters long**. Be as accurate as you can.
+    1. You will see **12 images** of verification codes.
+    2. For each image, click **'I Recognized It!'** once you see the code.
+    3. A text box will appear. Please enter the code you saw.
+    4. Don't worry — there are no confusing characters like '0' or 'O'.
+    5. Please type carefully. Each entry helps our research.
     """)
-    if st.button("Begin Now"):
-        st.session_state.images = load_images()
+    if st.button("Begin Survey"):
         st.session_state.step = "survey"
         st.experimental_rerun()
 
-# ---- Survey Page ----
-elif st.session_state.step == "survey":
-    total = len(st.session_state.images)
-    i = st.session_state.index
-    current = st.session_state.images[i]
+# --- SURVEY PAGE ---
+def show_survey():
+    index = st.session_state.current_index
+    if index >= 12:
+        st.session_state.step = "end"
+        st.experimental_rerun()
+    group, filename = st.session_state.images[index]
+    st.subheader(f"Trial {index + 1} — Group: {group}")
 
-    st.subheader(f"Trial {i + 1} of {total}")
-    st.text(current["label"])
-    st.image(os.path.join("images", current["filename"]), width=300)
+    image_path = os.path.join(st.session_state.image_dir, filename)
+    st.image(Image.open(image_path), width=300)
 
-    if not st.session_state.answer_ready:
-        if st.button("I Recognized It"):
+    if "clicked" not in st.session_state:
+        st.session_state.clicked = False
+
+    if not st.session_state.clicked:
+        if st.button("I Recognized It!"):
             st.session_state.start_time = time.time()
-            st.session_state.answer_ready = True
+            st.session_state.clicked = True
             st.experimental_rerun()
     else:
-        answer = st.text_input("Enter what you saw:")
+        answer = st.text_input("Enter the code you saw:", key=f"answer_{index}")
         if st.button("Submit"):
             end_time = time.time()
-            duration = round(end_time - st.session_state.start_time, 3)
+            elapsed = round(end_time - st.session_state.start_time, 3)
+            cleaned = answer.strip().upper()
+            is_correct = cleaned in valid_answers[group]
 
-            correct_list = valid_answers[current["group"]]
-            is_correct = any(answer.strip().upper() == valid.strip().upper() for valid in correct_list)
-
-            st.session_state.responses.append({
-                "Username": st.session_state.name,
-                "Trial": i + 1,
-                "Color": "Mixed" if current["group"].startswith("M") else "Single",
-                "Distortion": current["label"].split(", ")[-1],
-                "Time_sec": duration,
-                "Answer": answer.strip(),
+            st.session_state.results.append({
+                "Username": st.session_state.username,
+                "Trial": index + 1,
+                "Color": "Mixed" if group.startswith("MC") else "No Color",
+                "Distortion": "None" if group.endswith("ND") else ("Simple" if group.endswith("SD") else "Complex"),
+                "Time_sec": elapsed,
+                "Answer": cleaned,
                 "Timestamp": datetime.now().isoformat(),
                 "Correct": is_correct
             })
 
-            # Advance
-            st.session_state.index += 1
-            st.session_state.start_time = None
-            st.session_state.answer_ready = False
-
-            if st.session_state.index >= total:
-                st.session_state.step = "done"
+            st.session_state.current_index += 1
+            st.session_state.clicked = False
             st.experimental_rerun()
 
-# ---- Final Page ----
-elif st.session_state.step == "done":
-    st.success("✅ Survey Completed")
-    df = pd.DataFrame(st.session_state.responses)
+# --- END PAGE ---
+def show_end():
+    st.success("✅ Survey Completed. Thank you!")
+    df = pd.DataFrame(st.session_state.results)
     st.dataframe(df)
-    csv = df.to_csv(index=False).encode("utf-8")
-    st.download_button("📥 Download Your Results", csv, "survey_results.csv", "text/csv")
+    st.download_button("Download CSV", data=df.to_csv(index=False), file_name="results.csv")
+
+# --- ROUTING ---
+if st.session_state.step == "start":
+    show_start()
+elif st.session_state.step == "instructions":
+    show_instructions()
+elif st.session_state.step == "survey":
+    show_survey()
+elif st.session_state.step == "end":
+    show_end()
