@@ -20,7 +20,14 @@ groups = {
     "MPND": [f"MPND{i}.jpg" for i in range(1, 7)],
 }
 
-valid_codes = {key: [img.replace(".jpg", "") for img in val] for key, val in groups.items()}
+valid_codes = {
+    "MCCD": ["Q2BT", "G7MW", "U8FX", "A9CJ", "M4KP", "X6DN"],
+    "MCND": ["R5UM", "X4GE", "H2KD", "P7CQ", "6TVA", "D8YR"],
+    "MLCD": ["N8QJ", "S4VA", "E9DX", "T3KM", "J5NZ", "V6RC"],
+    "MLND": ["A7KQ", "M9TX", "8ZRD", "V3NC", "F6JP", "2WBY"],
+    "MPCD": ["F3YV", "B7QA", "Z5HW", "H6GT", "R2NX", "Y8PC"],
+    "MPND": ["K3BN", "Z9MU", "B5FX", "Y2GW", "C6TR", "W7HP"]
+}
 
 st.title("The Impact of Color & Distortion on Code Recognition")
 
@@ -39,14 +46,15 @@ if "questions" not in st.session_state:
 if st.session_state.page == "start":
     st.markdown("""
     ### Welcome to the Visual Recognition Experiment
-    
+
     In this experiment, you will be shown a series of images containing distorted or colored alphanumeric codes.
-    Your task is to recognize the code in each image and enter it into the input box provided.
+    Your task is to recognize the 4-character code in each image and enter it into the input box provided.
 
     **Instructions:**
     - You will go through 12 images in total.
     - Each image will appear only once.
-    - Enter the exact code you see (e.g., `MCCD4`, not lowercase).
+    - Enter the **4-character code** you see, like `MCCD`, `X4GE`, etc.
+    - Answers must belong to the same group of the image displayed.
     - Your response time and accuracy will be recorded.
 
     Please type your nickname below and press **Start Survey** to begin.
@@ -63,7 +71,7 @@ if st.session_state.page == "survey":
     if current_trial < len(st.session_state.questions):
         q = st.session_state.questions[current_trial]
         img_path = os.path.join(image_folder, q["image"])
-        st.image(img_path, caption="Please enter the code you see.")
+        st.image(img_path, caption="Please enter the 4-character code you see.")
 
         if st.session_state.trial_start_time is None:
             st.session_state.trial_start_time = time.time()
