@@ -10,7 +10,6 @@ from datetime import datetime
 WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbyG6BpxW0MOGPTtkR6-K-rCDHvPZjj7yJvV1Bo2MzvCuVqkQ3tHydPIdyAKmknxPjLXMw/exec"
 
 # --- Image Groups ---
-image_folder = "images"
 groups = {
     "MCCD": [f"MCCD{i}.jpg" for i in range(1, 7)],
     "MCND": [f"MCND{i}.jpg" for i in range(1, 7)],
@@ -70,8 +69,8 @@ if st.session_state.page == "survey":
 
     if current_trial < len(st.session_state.questions):
         q = st.session_state.questions[current_trial]
-        img_path = os.path.join(image_folder, q["image"])
-        st.image(img_path, caption="Please enter the 4-character code you see.")
+        img_url = f"https://raw.githubusercontent.com/LV210015/STAT-332---Design-V2/main/images/{q['image']}"
+        st.image(img_url, caption="Please enter the 4-character code you see.")
 
         if st.session_state.trial_start_time is None:
             st.session_state.trial_start_time = time.time()
