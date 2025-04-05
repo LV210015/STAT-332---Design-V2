@@ -1,110 +1,106 @@
 import streamlit as st
-import random
-import os
-import pandas as pd
 import time
+import random
+import pandas as pd
 import requests
 from datetime import datetime
 
-# --- Google Apps Script Webhook URL ---
-WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbyG6BpxW0MOGPTtkR6-K-rCDHvPZjj7yJvV1Bo2MzvCuVqkQ3tHydPIdyAKmknxPjLXMw/exec"
+# Your Google Sheets Webhook URL
+WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxr9VbH4_pjofYGmTNREOsFYo9J6BEXSFAd5-zkdYVFDHAp-ozKaSuTlb5jEbvt-lvJOg/exec"
 
-# --- Image Groups ---
-groups = {
-    "MCCD": [f"MCCD{i}.jpg" for i in range(1, 7)],
-    "MCND": [f"MCND{i}.jpg" for i in range(1, 7)],
-    "MLCD": [f"MLCD{i}.jpg" for i in range(1, 7)],
-    "MLND": [f"MLND{i}.jpg" for i in range(1, 7)],
-    "MPCD": [f"MPCD{i}.jpg" for i in range(1, 7)],
-    "MPND": [f"MPND{i}.jpg" for i in range(1, 7)],
-}
-
-valid_codes = {
-    "MCCD": ["Q2BT", "G7MW", "U8FX", "A9CJ", "M4KP", "X6DN"],
+# Define valid answers per group
+valid_answers = {
     "MCND": ["R5UM", "X4GE", "H2KD", "P7CQ", "6TVA", "D8YR"],
-    "MLCD": ["N8QJ", "S4VA", "E9DX", "T3KM", "J5NZ", "V6RC"],
-    "MLND": ["A7KQ", "M9TX", "8ZRD", "V3NC", "F6JP", "2WBY"],
-    "MPCD": ["F3YV", "B7QA", "Z5HW", "H6GT", "R2NX", "Y8PC"],
-    "MPND": ["K3BN", "Z9MU", "B5FX", "Y2GW", "C6TR", "W7HP"]
+    "MCSD": ["N8QJ", "S4VA", "E9DX", "T3KM", "J5NZ", "V6RC"],
+    "MCCD": ["Q2BT", "G7MW", "U8FX", "A9CJ", "M4KP", "X6DN"],
+    "NCND": ["A7KQ", "M9TX", "8ZRD", "V3NC", "F6JP", "2WBY"],
+    "NCSD": ["K3BN", "Z9MU", "B5FX", "Y2GW", "C6TR", "W7HP"],
+    "NCCD": ["F3YV", "B7QA", "Z5HW", "H6GT", "R2NX", "Y8PC"]
 }
 
-st.title("The Impact of Color & Distortion on Code Recognition")
+# Generate randomized trials (2 from each group)
+def load_trials():
+    trials = []
+    for prefix in valid_answers:
+        selected = random.sample(valid_answers[prefix], 2)
+        for code in selected:
+            color = "Mixed" if prefix.startswith("MC") else "Single"
+            if "ND" in prefix:
+                distortion = "None"
+            elif "SD" in prefix:
+                distortion = "Simple"
+            else:
+                distortion = "Complex"
+            trials.append({
+                "Group": prefix,
+                "Color": color,
+                "Distortion": distortion,
+                "Code": code
+            })
+    random.shuffle(trials)
+    return trials
 
-# --- Page Navigation ---
-if "page" not in st.session_state:
-    st.session_state.page = "start"
-if "questions" not in st.session_state:
-    st.session_state.questions = []
-    for group, imgs in groups.items():
-        st.session_state.questions.extend([{"group": group, "image": img} for img in random.sample(imgs, 2)])
-    random.shuffle(st.session_state.questions)
-    st.session_state.answers = []
-    st.session_state.trial_start_time = None
+# UI begins
+st.title("Visual Recognition Survey")
 
-# --- Start Page ---
-if st.session_state.page == "start":
-    st.markdown("""
-    ### Welcome to the Visual Recognition Experiment
+# Session state setup
+if "trial_index" not in st.session_state:
+    st.session_state.trial_index = 0
+    st.session_state.trials = load_trials()
+    st.session_state.start_time = None
+    st.session_state.results = []
+    st.session_state.show_input = False
+    st.session_state.response_time = None
 
-    In this experiment, you will be shown a series of images containing distorted or colored alphanumeric codes.
-    Your task is to recognize the 4-character code in each image and enter it into the input box provided.
+# Run trials
+if st.session_state.trial_index < len(st.session_state.trials):
+    trial = st.session_state.trials[st.session_state.trial_index]
+    st.subheader(f"Trial {st.session_state.trial_index + 1}")
+    st.markdown(f"**Group:** {trial['Group']}  \n**Color:** {trial['Color']}  \n**Distortion:** {trial['Distortion']}")
 
-    **Instructions:**
-    - You will go through 12 images in total.
-    - Each image will appear only once.
-    - Enter the **4-character code** you see (e.g., `X4GE`).
-    - Answers must belong to the same group as the image displayed.
-    - Your response time and accuracy will be recorded.
+    if st.session_state.start_time is None:
+        st.session_state.start_time = time.time()
 
-    Please type your nickname below and press **Start Survey** to begin.
-    """)
-    nickname = st.text_input("Please enter a nickname or username to begin:", key="nickname")
-    if st.button("Start Survey") and nickname:
-        st.session_state.page = "survey"
-        st.rerun()
+    if st.button("I recognized it"):
+        st.session_state.response_time = time.time() - st.session_state.start_time
+        st.session_state.show_input = True
 
-# --- Survey Page ---
-if st.session_state.page == "survey":
-    current_trial = len(st.session_state.answers)
-
-    if current_trial < len(st.session_state.questions):
-        q = st.session_state.questions[current_trial]
-        img_url = f"https://raw.githubusercontent.com/LV210015/STAT-332---Design-V2/main/images/{q['image']}"
-        st.image(img_url, caption="Please enter the 4-character code you see.")
-
-        if st.session_state.trial_start_time is None:
-            st.session_state.trial_start_time = time.time()
-
-        answer = st.text_input("Code:", key=f"response_{current_trial}")
-
+    if st.session_state.show_input:
+        answer = st.text_input("Enter the code you saw:")
         if st.button("Submit"):
-            elapsed = time.time() - st.session_state.trial_start_time
-            correct = answer.strip().upper() in [code.upper() for code in valid_codes[q["group"]]]
+            correct_codes = valid_answers[trial["Group"]]
+            is_correct = answer.strip().upper() in [x.upper() for x in correct_codes]
 
             result = {
-                "Username": st.session_state.get("nickname", ""),
-                "Trial": current_trial + 1,
-                "Color": q["group"][1],
-                "Distortion": q["group"][2],
-                "Time_sec": round(elapsed, 3),
+                "Trial": st.session_state.trial_index + 1,
+                "Color": trial["Color"],
+                "Distortion": trial["Distortion"],
+                "Time_sec": round(st.session_state.response_time, 3),
                 "Answer": answer.strip(),
                 "Timestamp": datetime.now().isoformat(),
-                "Correct": "TRUE" if correct else "FALSE"
+                "Correct": is_correct
             }
+
+            st.session_state.results.append(result)
 
             try:
                 requests.post(WEBHOOK_URL, json=result)
-            except:
-                st.error("Failed to send data to Google Sheet. Check your connection or webhook URL.")
+                if is_correct:
+                    st.success("✅ Correct code.")
+                else:
+                    st.error("❌ Not matched to the expected group.")
+            except Exception as e:
+                st.warning(f"⚠️ Failed to upload: {e}")
 
-            st.session_state.answers.append(result)
-            st.session_state.trial_start_time = None
+            st.session_state.trial_index += 1
+            st.session_state.start_time = None
+            st.session_state.show_input = False
+            st.session_state.response_time = None
             st.rerun()
 
-    else:
-        st.write("Thank you for participating. Your responses have been recorded.")
-        df = pd.DataFrame(st.session_state.answers)
-        st.dataframe(df)
-        csv = df.to_csv(index=False).encode("utf-8")
-        st.download_button("Download My Results (CSV)", csv, "results.csv", "text/csv")
-        st.session_state.page = "done"
+else:
+    st.success("✅ Survey Completed")
+    df = pd.DataFrame(st.session_state.results)
+    st.dataframe(df)
+    csv = df.to_csv(index=False).encode("utf-8")
+    st.download_button("⬇️ Download Results", csv, "results.csv", "text/csv")
