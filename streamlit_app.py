@@ -53,8 +53,8 @@ if st.session_state.page == "start":
     **Instructions:**
     - You will go through 12 images in total.
     - Each image will appear only once.
-    - Enter the **4-character code** you see, like `MCCD`, `X4GE`, etc.
-    - Answers must belong to the same group of the image displayed.
+    - Enter the **4-character code** you see (e.g., `X4GE`).
+    - Answers must belong to the same group as the image displayed.
     - Your response time and accuracy will be recorded.
 
     Please type your nickname below and press **Start Survey** to begin.
@@ -62,7 +62,7 @@ if st.session_state.page == "start":
     nickname = st.text_input("Please enter a nickname or username to begin:", key="nickname")
     if st.button("Start Survey") and nickname:
         st.session_state.page = "survey"
-        st.experimental_rerun()
+        st.rerun()
 
 # --- Survey Page ---
 if st.session_state.page == "survey":
@@ -100,7 +100,7 @@ if st.session_state.page == "survey":
 
             st.session_state.answers.append(result)
             st.session_state.trial_start_time = None
-            st.experimental_rerun()
+            st.rerun()
 
     else:
         st.write("Thank you for participating. Your responses have been recorded.")
