@@ -5,6 +5,7 @@ import time
 import pandas as pd
 from datetime import datetime
 
+st.set_page_config(page_title="STAT 332 Survey", layout="centered", initial_sidebar_state="collapsed")
 # ---- Group Prefixes and Valid Codes ----
 group_prefixes = {
     "MCND": "Mixed Color + No Distortion",
